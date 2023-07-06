@@ -1,5 +1,6 @@
 pub(crate) mod dumper;
 pub(crate) mod verifier;
+pub(crate) mod parser;
 
 
 use ciborium::de;
@@ -49,7 +50,7 @@ const CLAIM_COUNT_SW_COMPONENT: usize =                  5;
 const MAX_SW_COMPONENT_COUNT: usize =                   32;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ClaimData
 {
     Bool(bool),
@@ -100,6 +101,42 @@ impl ClaimData
             return s;
         } else {
             panic!("ClaimData is not Text");
+        }
+    }
+}
+
+impl TryInto<String> for ClaimData {
+    type Error = TokenError;
+
+    fn try_into(self) -> Result<String, Self::Error> {
+        if let ClaimData::Text(v) = self {
+            Ok(v)
+        } else {
+            Err(TokenError::ClaimDataMisMatchType)
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for ClaimData {
+    type Error = TokenError;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        if let ClaimData::Bstr(v) = self {
+            Ok(v)
+        } else {
+            Err(TokenError::ClaimDataMisMatchType)
+        }
+    }
+}
+
+impl TryInto<i64> for ClaimData {
+    type Error = TokenError;
+
+    fn try_into(self) -> Result<i64, Self::Error> {
+        if let ClaimData::Int64(v) = self {
+            Ok(v)
+        } else {
+            Err(TokenError::ClaimDataMisMatchType)
         }
     }
 }
@@ -237,6 +274,9 @@ pub enum TokenError
     Ciborium(de::Error<std::io::Error>),
     Coset(coset::CoseError),
     Ecdsa(ecdsa::Error),
+    MissingPlatClaim(&'static str),
+    MissingPlatSwClaim(&'static str),
+    ClaimDataMisMatchType
 }
 
 impl std::fmt::Display for TokenError
