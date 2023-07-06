@@ -1,5 +1,5 @@
-use super::{Claim, ClaimData};
-use crate::TokenError;
+use super::{ClaimData, ClaimsMap, CCA_SW_COMP_TITLE};
+use crate::{TokenError, token_c::bindgen::{CCA_PLAT_CHALLENGE, CCA_PLAT_VERIFICATION_SERVICE, CCA_PLAT_PROFILE, CCA_PLAT_INSTANCE_ID, CCA_PLAT_IMPLEMENTATION_ID, CCA_PLAT_SECURITY_LIFECYCLE, CCA_PLAT_CONFIGURATION, CCA_PLAT_HASH_ALGO_ID, CCA_SW_COMP_HASH_ALGORITHM, CCA_SW_COMP_MEASUREMENT_VALUE, CCA_SW_COMP_VERSION, CCA_SW_COMP_SIGNER_ID}};
 
 pub struct PlatClaims {
     pub challenge: Vec<u8>,
@@ -13,21 +13,24 @@ pub struct PlatClaims {
 }
 
 impl PlatClaims {
-    fn get_claim(title: &'static str, claims: &[Claim]) -> Result<ClaimData, TokenError> {
-        claims.iter().find(|i| i.present && i.title == title)
-            .map_or(Err(TokenError::MissingPlatClaim(title)), |i| Ok(i.data.clone()))
+    fn get_claim(key: u32, claims: &ClaimsMap) -> Result<ClaimData, TokenError> {
+        if claims.contains_key(&key) {
+            Ok(claims[&key].data.clone())
+        } else {
+            Err(TokenError::MissingPlatClaim(key))
+        }
     }
 
-    pub fn from_raw_claims(claims: &[Claim]) -> Result<Self, TokenError> {
+    pub fn from_raw_claims(claims: &ClaimsMap) -> Result<Self, TokenError> {
         Ok(Self {
-            challenge: Self::get_claim("Challange", claims)?.try_into()?,
-            verification_service: Self::get_claim("Verification service", claims)?.try_into()?,
-            profile: Self::get_claim("Profile", claims)?.try_into()?,
-            instance_id: Self::get_claim("Instance ID", claims)?.try_into()?,
-            implementation_id: Self::get_claim("Implementation ID", claims)?.try_into()?,
-            lifecycle: Self::get_claim("Lifecycle", claims)?.try_into()?,
-            configuration: Self::get_claim("Configuration", claims)?.try_into()?,
-            hash_algo: Self::get_claim("Platform hash algo", claims)?.try_into()?
+            challenge: Self::get_claim(CCA_PLAT_CHALLENGE, claims)?.try_into()?,
+            verification_service: Self::get_claim(CCA_PLAT_VERIFICATION_SERVICE, claims)?.try_into()?,
+            profile: Self::get_claim(CCA_PLAT_PROFILE, claims)?.try_into()?,
+            instance_id: Self::get_claim(CCA_PLAT_INSTANCE_ID, claims)?.try_into()?,
+            implementation_id: Self::get_claim(CCA_PLAT_IMPLEMENTATION_ID, claims)?.try_into()?,
+            lifecycle: Self::get_claim(CCA_PLAT_SECURITY_LIFECYCLE, claims)?.try_into()?,
+            configuration: Self::get_claim(CCA_PLAT_CONFIGURATION, claims)?.try_into()?,
+            hash_algo: Self::get_claim(CCA_PLAT_HASH_ALGO_ID, claims)?.try_into()?
         })
     }
 }
@@ -41,21 +44,24 @@ pub struct PlatSwComponent {
 }
 
 impl PlatSwComponent {
-    fn get_claim(title: &'static str, claims: &[Claim]) -> Result<ClaimData, TokenError> {
-        claims.iter().find(|i| i.present && i.title == title)
-            .map_or(Err(TokenError::MissingPlatSwClaim(title)), |i| Ok(i.data.clone()))
+    fn get_claim(key: u32, claims: &ClaimsMap) -> Result<ClaimData, TokenError> {
+        if claims.contains_key(&key) {
+            Ok(claims[&key].data.clone())
+        } else {
+            Err(TokenError::MissingPlatSwClaim(key))
+        }
     }
 
-    pub fn from_raw_claims(claims: &[Claim], plat_hash_algo: &String) -> Result<Self, TokenError> {
+    pub fn from_raw_claims(claims: &ClaimsMap, plat_hash_algo: &String) -> Result<Self, TokenError> {
         Ok(Self {
-            ty: Self::get_claim("SW Type", claims)?.try_into()?,
-            hash_algo: match Self::get_claim("Hash algorithm", claims) {
+            ty: Self::get_claim(CCA_SW_COMP_TITLE, claims)?.try_into()?,
+            hash_algo: match Self::get_claim(CCA_SW_COMP_HASH_ALGORITHM, claims) {
                 Ok(i) => i.try_into()?,
                 Err(_) => plat_hash_algo.clone()
             },
-            value: Self::get_claim("Measurement value", claims)?.try_into()?,
-            version: Self::get_claim("Version", claims)?.try_into()?,
-            signer_id: Self::get_claim("Signer ID", claims)?.try_into()?,
+            value: Self::get_claim(CCA_SW_COMP_MEASUREMENT_VALUE, claims)?.try_into()?,
+            version: Self::get_claim(CCA_SW_COMP_VERSION, claims)?.try_into()?,
+            signer_id: Self::get_claim(CCA_SW_COMP_SIGNER_ID, claims)?.try_into()?,
         })
     }
 }

@@ -77,27 +77,24 @@ fn get_claim(val: Value, claim: &mut Claim) -> Result<(), TokenError>
     Ok(())
 }
 
-fn find_claim(claims: &mut [Claim], key: i64) -> Option<&mut Claim>
+fn find_claim(claims: &mut ClaimsMap, key: u32) -> Option<&mut Claim>
 {
-    for elem in claims {
-        if elem.key == key {
-            return Some(elem);
-        }
+    if claims.contains_key(&key) {
+        return Some(claims.get_mut(&key).unwrap());
     }
 
     None
 }
 
-fn get_claims_from_map(map: Vec<(Value, Value)>, claims: &mut [Claim])
+fn get_claims_from_map(map: Vec<(Value, Value)>, claims: &mut ClaimsMap)
                        -> Result<Vec<(Value, Value)>, TokenError>
 {
     let mut unknown = Vec::<(Value, Value)>::new();
 
     for (orig_key, val) in map {
-        let key = unpack_i64(&orig_key)?;
+        let key = unpack_i64(&orig_key)?.try_into().unwrap(); // into u32
         let claim = find_claim(claims, key);
         if let Some(claim) = claim {
-            claim.key = key;
             get_claim(val, claim)?;
         } else {
             unknown.push((orig_key, val));
@@ -135,8 +132,8 @@ fn unpack_token_realm(token: &mut RealmToken) -> Result<(), TokenError>
         .into_iter()
         .zip(&mut token.measurement_claims);
 
-    for (rem, claim) in rem_map {
-        get_claim(rem, claim)?;
+    for (rem, (_, v)) in rem_map {
+        get_claim(rem, v)?;
     }
 
     Ok(())
@@ -217,7 +214,7 @@ pub fn verify_token_realm(buf: &[u8]) -> Result<RealmToken, TokenError>
 
     unpack_token_realm(&mut token)?;
 
-    let realm_key = token.token_claims[4].data.get_bstr();
+    let realm_key = token.token_claims[&CCA_REALM_PUB_KEY].data.get_bstr();
     verify_coset_signature(&token.cose_sign1, realm_key, b"")?;
 
     Ok(token)
@@ -245,9 +242,9 @@ pub fn verify_token(buf: &[u8]) -> Result<AttestationClaims, TokenError>
     let realm_token = verify_token_realm(&realm_token)?;
     let platform_token = verify_token_platform(&platform_token, None)?;
 
-    let dak_pub = realm_token.token_claims[4].data.get_bstr();
-    let challenge = platform_token.token_claims[0].data.get_bstr();
-    let alg = realm_token.token_claims[3].data.get_text();
+    let dak_pub = realm_token.token_claims[&CCA_REALM_PUB_KEY].data.get_bstr();
+    let challenge = platform_token.token_claims[&CCA_PLAT_CHALLENGE].data.get_bstr();
+    let alg = realm_token.token_claims[&CCA_REALM_PUB_KEY_HASH_ALGO_ID].data.get_text();
     verify_platform_challenge(dak_pub, challenge, alg)?;
 
     let attest_claims = AttestationClaims::new(realm_token, platform_token);

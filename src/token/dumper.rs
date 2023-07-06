@@ -11,21 +11,21 @@ fn print_indent(indent: i32)
     }
 }
 
-fn print_claim(claim: &Claim, indent: i32)
+fn print_claim(key: u32, claim: &Claim, indent: i32)
 {
     print_indent(indent);
 
     if claim.present {
         match &claim.data {
-            ClaimData::Int64(i) => println!("{:COLUMN$} (#{}) = {}", claim.title, claim.key, i),
-            ClaimData::Bool(b) => println!("{:COLUMN$} (#{}) = {}", claim.title, claim.key, b),
-            ClaimData::Bstr(v) => println!("{:COLUMN$} (#{}) = [{}]", claim.title, claim.key, hex::encode(v)),
-            ClaimData::Text(s) => println!("{:COLUMN$} (#{}) = \"{}\"", claim.title, claim.key, s),
+            ClaimData::Int64(i) => println!("{:COLUMN$} (#{}) = {}", claim.title, key, i),
+            ClaimData::Bool(b) => println!("{:COLUMN$} (#{}) = {}", claim.title, key, b),
+            ClaimData::Bstr(v) => println!("{:COLUMN$} (#{}) = [{}]", claim.title, key, hex::encode(v)),
+            ClaimData::Text(s) => println!("{:COLUMN$} (#{}) = \"{}\"", claim.title, key, s),
         }
     } else {
         let mandatory = if claim.mandatory { "mandatory " } else { "" };
         println!("* Missing {}claim with key: {} ({})",
-                 mandatory, claim.key, claim.title);
+                 mandatory, key, claim.title);
     }
 }
 
@@ -40,29 +40,17 @@ fn print_cose_sign1(token_type: &str,
     println!("== End of {} Token cose\n", token_type);
 }
 
-#[allow(dead_code)]
-fn print_cose_sign1_wrapper(token_type: &str,
-                            cose_sign1_wrapper: &[Claim])
-{
-    println!("== {} Token cose wrapper:", token_type);
-    print_claim(&cose_sign1_wrapper[0], 0);
-    //print_claim(&cose_sign1_wrapper[1], 0);  // token payload
-    print_claim(&cose_sign1_wrapper[2], 0);
-    println!("== End of {} Token cose wrapper\n", token_type);
-}
-
 fn print_token_realm(claims: &RealmToken)
 {
     print_cose_sign1("Realm", &claims.cose_sign1);
-    //print_cose_sign1_wrapper("Realm", &claims.realm_cose_sign1_wrapper);
 
     println!("== Realm Token:");
-    for token in &claims.token_claims {
-        print_claim(token, 0);
+    for (k, v) in &claims.token_claims {
+        print_claim(*k, v, 0);
     }
     println!("{:COLUMN$} (#{})", "Realm measurements", CCA_REALM_EXTENSIBLE_MEASUREMENTS);
-    for claim in &claims.measurement_claims {
-        print_claim(claim, 1);
+    for (k, v) in &claims.measurement_claims {
+        print_claim(*k, v, 1);
     }
     println!("== End of Realm Token.\n\n");
 }
@@ -70,11 +58,10 @@ fn print_token_realm(claims: &RealmToken)
 pub fn print_token_platform(claims: &PlatformToken)
 {
     print_cose_sign1("Platform", &claims.cose_sign1);
-    //print_cose_sign1_wrapper("Platform", &claims.plat_cose_sign1_wrapper);
 
     println!("== Platform Token:");
-    for claim in &claims.token_claims {
-        print_claim(claim, 0);
+    for (k, v) in &claims.token_claims {
+        print_claim(*k, v, 0);
     }
 
     let mut count = 0;
@@ -82,8 +69,8 @@ pub fn print_token_platform(claims: &PlatformToken)
     for component in &claims.sw_component_claims {
         if component.present {
             println!("  SW component #{}:", count);
-            for claim in &component.claims {
-                print_claim(&claim, 2);
+            for (k, v) in &component.claims {
+                print_claim(*k, v, 2);
             }
             count += 1;
         }

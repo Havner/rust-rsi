@@ -5,6 +5,7 @@ pub(crate) mod parser;
 
 use ciborium::de;
 use coset::CoseSign1;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::default::Default;
 
@@ -153,7 +154,6 @@ impl Default for ClaimData
 pub struct Claim
 {
     pub mandatory: bool,
-    pub key: i64,
     pub title: String,
     pub present: bool,
     pub data: ClaimData,
@@ -161,38 +161,39 @@ pub struct Claim
 
 impl Claim
 {
-    fn init<T>(&mut self, mandatory: bool, data: ClaimData,
-               key: T, title: &str, present: bool)
-        where T: Into<i64>
+    fn new(mandatory: bool, data: ClaimData, title: &str, present: bool) -> Self
     {
-        self.mandatory = mandatory;
-        self.data = data;
-        self.key = key.into();
-        self.title = title.to_string();
-        self.present = present;
+        Self {
+            mandatory,
+            data,
+            title: title.to_string(),
+            present,
+        }
     }
 }
+
+type ClaimsMap = HashMap<u32, Claim>;
 
 #[derive(Debug, Default)]
 pub struct SwComponent
 {
     pub present: bool,
-    pub claims: [Claim; CLAIM_COUNT_SW_COMPONENT],
+    pub claims: ClaimsMap,
 }
 
 #[derive(Debug, Default)]
 pub struct RealmToken
 {
     pub cose_sign1: CoseSign1,
-    pub token_claims: [Claim; CLAIM_COUNT_REALM_TOKEN],
-    pub measurement_claims: [Claim; CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS],
+    pub token_claims: ClaimsMap,
+    pub measurement_claims: ClaimsMap,
 }
 
 #[derive(Debug, Default)]
 pub struct PlatformToken
 {
     pub cose_sign1: CoseSign1,
-    pub token_claims: [Claim; CLAIM_COUNT_PLATFORM_TOKEN],
+    pub token_claims: ClaimsMap,
     pub sw_component_claims: [SwComponent; MAX_SW_COMPONENT_COUNT],
 }
 
@@ -200,22 +201,26 @@ impl RealmToken
 {
     fn new() -> Self
     {
-        let mut claims = Self::default();
+        let mut token = Self::default();
 
-        claims.token_claims[0].init(true, ClaimData::new_bstr(), CCA_REALM_CHALLENGE,             "Realm challenge",               false);
-        claims.token_claims[1].init(true, ClaimData::new_bstr(), CCA_REALM_PERSONALIZATION_VALUE, "Realm personalization value",   false);
-        claims.token_claims[2].init(true, ClaimData::new_text(), CCA_REALM_HASH_ALGO_ID,          "Realm hash algo id",            false);
-        claims.token_claims[3].init(true, ClaimData::new_text(), CCA_REALM_PUB_KEY_HASH_ALGO_ID,  "Realm public key hash algo id", false);
-        claims.token_claims[4].init(true, ClaimData::new_bstr(), CCA_REALM_PUB_KEY,               "Realm signing public key",      false);
-        claims.token_claims[5].init(true, ClaimData::new_bstr(), CCA_REALM_INITIAL_MEASUREMENT,   "Realm initial measurement",     false);
+        token.token_claims.insert(CCA_REALM_CHALLENGE,             Claim::new(true, ClaimData::new_bstr(), "Realm challenge",               false));
+        token.token_claims.insert(CCA_REALM_PERSONALIZATION_VALUE, Claim::new(true, ClaimData::new_bstr(), "Realm personalization value",   false));
+        token.token_claims.insert(CCA_REALM_HASH_ALGO_ID,          Claim::new(true, ClaimData::new_text(), "Realm hash algo id",            false));
+        token.token_claims.insert(CCA_REALM_PUB_KEY_HASH_ALGO_ID,  Claim::new(true, ClaimData::new_text(), "Realm public key hash algo id", false));
+        token.token_claims.insert(CCA_REALM_PUB_KEY,               Claim::new(true, ClaimData::new_bstr(), "Realm signing public key",      false));
+        token.token_claims.insert(CCA_REALM_INITIAL_MEASUREMENT,   Claim::new(true, ClaimData::new_bstr(), "Realm initial measurement",     false));
+        assert!(token.token_claims.len() == CLAIM_COUNT_REALM_TOKEN);
 
         let mut count = 0;
-        for claim in &mut claims.measurement_claims {
-            claim.init(true, ClaimData::new_bstr(), count, "Realm extensible measurement", false);
+        loop {
+            token.measurement_claims.insert(count, Claim::new(true, ClaimData::new_bstr(), "Realm extensible measurement", false));
             count += 1;
+            if count as usize == CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS {
+                break;
+            }
         }
 
-        claims
+        token
     }
 }
 
@@ -223,27 +228,29 @@ impl PlatformToken
 {
     fn new() -> Self
     {
-        let mut claims = Self::default();
+        let mut token = Self::default();
 
-        claims.token_claims[0].init(true,  ClaimData::new_bstr(),  CCA_PLAT_CHALLENGE,            "Challange",            false);
-        claims.token_claims[1].init(false, ClaimData::new_text(),  CCA_PLAT_VERIFICATION_SERVICE, "Verification service", false);
-        claims.token_claims[2].init(true,  ClaimData::new_text(),  CCA_PLAT_PROFILE,              "Profile",              false);
-        claims.token_claims[3].init(true,  ClaimData::new_bstr(),  CCA_PLAT_INSTANCE_ID,          "Instance ID",          false);
-        claims.token_claims[4].init(true,  ClaimData::new_bstr(),  CCA_PLAT_IMPLEMENTATION_ID,    "Implementation ID",    false);
-        claims.token_claims[5].init(true,  ClaimData::new_int64(), CCA_PLAT_SECURITY_LIFECYCLE,   "Lifecycle",            false);
-        claims.token_claims[6].init(true,  ClaimData::new_bstr(),  CCA_PLAT_CONFIGURATION,        "Configuration",        false);
-        claims.token_claims[7].init(true,  ClaimData::new_text(),  CCA_PLAT_HASH_ALGO_ID,         "Platform hash algo",   false);
+        token.token_claims.insert(CCA_PLAT_CHALLENGE,            Claim::new(true,  ClaimData::new_bstr(),  "Challange",            false));
+        token.token_claims.insert(CCA_PLAT_VERIFICATION_SERVICE, Claim::new(false, ClaimData::new_text(),  "Verification service", false));
+        token.token_claims.insert(CCA_PLAT_PROFILE,              Claim::new(true,  ClaimData::new_text(),  "Profile",              false));
+        token.token_claims.insert(CCA_PLAT_INSTANCE_ID,          Claim::new(true,  ClaimData::new_bstr(),  "Instance ID",          false));
+        token.token_claims.insert(CCA_PLAT_IMPLEMENTATION_ID,    Claim::new(true,  ClaimData::new_bstr(),  "Implementation ID",    false));
+        token.token_claims.insert(CCA_PLAT_SECURITY_LIFECYCLE,   Claim::new(true,  ClaimData::new_int64(), "Lifecycle",            false));
+        token.token_claims.insert(CCA_PLAT_CONFIGURATION,        Claim::new(true,  ClaimData::new_bstr(),  "Configuration",        false));
+        token.token_claims.insert(CCA_PLAT_HASH_ALGO_ID,         Claim::new(true,  ClaimData::new_text(),  "Platform hash algo",   false));
+        assert!(token.token_claims.len() == CLAIM_COUNT_PLATFORM_TOKEN);
 
-        for component in &mut claims.sw_component_claims {
+        for component in &mut token.sw_component_claims {
             component.present = false;
-            component.claims[0].init(true,  ClaimData::new_text(), CCA_SW_COMP_TITLE,             "SW Type",           false);
-            component.claims[1].init(false, ClaimData::new_text(), CCA_SW_COMP_HASH_ALGORITHM,    "Hash algorithm",    false);
-            component.claims[2].init(true,  ClaimData::new_bstr(), CCA_SW_COMP_MEASUREMENT_VALUE, "Measurement value", false);
-            component.claims[3].init(false, ClaimData::new_text(), CCA_SW_COMP_VERSION,           "Version",           false);
-            component.claims[4].init(true,  ClaimData::new_bstr(), CCA_SW_COMP_SIGNER_ID,         "Signer ID",         false);
+            component.claims.insert(CCA_SW_COMP_TITLE,             Claim::new(true,  ClaimData::new_text(), "SW Type",           false));
+            component.claims.insert(CCA_SW_COMP_HASH_ALGORITHM,    Claim::new(false, ClaimData::new_text(), "Hash algorithm",    false));
+            component.claims.insert(CCA_SW_COMP_MEASUREMENT_VALUE, Claim::new(true,  ClaimData::new_bstr(), "Measurement value", false));
+            component.claims.insert(CCA_SW_COMP_VERSION,           Claim::new(false, ClaimData::new_text(), "Version",           false));
+            component.claims.insert(CCA_SW_COMP_SIGNER_ID,         Claim::new(true,  ClaimData::new_bstr(), "Signer ID",         false));
+            assert!(component.claims.len() == CLAIM_COUNT_SW_COMPONENT);
         }
 
-        claims
+        token
     }
 }
 
@@ -274,8 +281,8 @@ pub enum TokenError
     Ciborium(de::Error<std::io::Error>),
     Coset(coset::CoseError),
     Ecdsa(ecdsa::Error),
-    MissingPlatClaim(&'static str),
-    MissingPlatSwClaim(&'static str),
+    MissingPlatClaim(u32),
+    MissingPlatSwClaim(u32),
     ClaimDataMisMatchType
 }
 
