@@ -25,3 +25,6 @@ pub use token_c::verify_token as c_verify_token;
 pub use token_c::print_raw_token as c_print_raw_token;
 pub use token_c::print_token as c_print_token;
 pub use token_c::print_token_rust as c_print_token_rust;
+
+pub use token::parser::PlatClaims;
+pub use token::parser::PlatSwComponent;
