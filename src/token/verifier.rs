@@ -281,7 +281,7 @@ fn verify_platform_challenge(dak_pub: &[u8], dak_pub_hash: &[u8], alg: &str) -> 
     };
 
     if digest != dak_pub_hash {
-        return Err(TokenError::InvalidTokenFormat("challenge verification failed"));
+        return Err(TokenError::VerificationFailed("challenge verification failed"));
     }
 
     Ok(())

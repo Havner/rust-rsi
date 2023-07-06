@@ -232,6 +232,7 @@ pub enum TokenError
     InvalidTag(&'static str),
     InvalidTokenFormat(&'static str),
     NotImplemented(&'static str),
+    VerificationFailed(&'static str),
     InvalidAlgorithm(Option<coset::Algorithm>),
     Ciborium(de::Error<std::io::Error>),
     Coset(coset::CoseError),
