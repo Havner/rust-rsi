@@ -28,3 +28,5 @@ pub use token_c::print_token_rust as c_print_token_rust;
 
 pub use token::parser::PlatClaims;
 pub use token::parser::PlatSwComponent;
+pub use token::parser::RealmClaims;
+pub use token::CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS;

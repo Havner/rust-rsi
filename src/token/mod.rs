@@ -46,7 +46,7 @@ const CCA_SW_COMP_HASH_ALGORITHM: u32 =                  6;
 /* Counts */
 const CLAIM_COUNT_REALM_TOKEN: usize =                   6;
 const CLAIM_COUNT_PLATFORM_TOKEN: usize =                8;
-const CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS: usize = 4;
+pub const CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS: usize = 4;
 const CLAIM_COUNT_SW_COMPONENT: usize =                  5;
 const MAX_SW_COMPONENT_COUNT: usize =                   32;
 

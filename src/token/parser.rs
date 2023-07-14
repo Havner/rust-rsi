@@ -1,5 +1,17 @@
-use super::{ClaimData, ClaimsMap, CCA_SW_COMP_TITLE};
-use crate::{TokenError, token_c::bindgen::{CCA_PLAT_CHALLENGE, CCA_PLAT_VERIFICATION_SERVICE, CCA_PLAT_PROFILE, CCA_PLAT_INSTANCE_ID, CCA_PLAT_IMPLEMENTATION_ID, CCA_PLAT_SECURITY_LIFECYCLE, CCA_PLAT_CONFIGURATION, CCA_PLAT_HASH_ALGO_ID, CCA_SW_COMP_HASH_ALGORITHM, CCA_SW_COMP_MEASUREMENT_VALUE, CCA_SW_COMP_VERSION, CCA_SW_COMP_SIGNER_ID}};
+use super::{
+    ClaimData, ClaimsMap, CCA_REALM_CHALLENGE, CCA_REALM_HASH_ALGO_ID,
+    CCA_REALM_INITIAL_MEASUREMENT, CCA_REALM_PERSONALIZATION_VALUE, CCA_REALM_PUB_KEY,
+    CCA_REALM_PUB_KEY_HASH_ALGO_ID, CCA_SW_COMP_TITLE, CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS,
+};
+use crate::{
+    token_c::bindgen::{
+        CCA_PLAT_CHALLENGE, CCA_PLAT_CONFIGURATION, CCA_PLAT_HASH_ALGO_ID,
+        CCA_PLAT_IMPLEMENTATION_ID, CCA_PLAT_INSTANCE_ID, CCA_PLAT_PROFILE,
+        CCA_PLAT_SECURITY_LIFECYCLE, CCA_PLAT_VERIFICATION_SERVICE, CCA_SW_COMP_HASH_ALGORITHM,
+        CCA_SW_COMP_MEASUREMENT_VALUE, CCA_SW_COMP_SIGNER_ID, CCA_SW_COMP_VERSION,
+    },
+    TokenError,
+};
 
 pub struct PlatClaims {
     pub challenge: Vec<u8>,
@@ -9,28 +21,28 @@ pub struct PlatClaims {
     pub implementation_id: Vec<u8>,
     pub lifecycle: i64,
     pub configuration: Vec<u8>,
-    pub hash_algo: String
+    pub hash_algo: String,
+}
+
+fn get_claim(key: u32, claims: &ClaimsMap) -> Result<ClaimData, TokenError> {
+    if claims.contains_key(&key) {
+        Ok(claims[&key].data.clone())
+    } else {
+        Err(TokenError::MissingPlatSwClaim(key))
+    }
 }
 
 impl PlatClaims {
-    fn get_claim(key: u32, claims: &ClaimsMap) -> Result<ClaimData, TokenError> {
-        if claims.contains_key(&key) {
-            Ok(claims[&key].data.clone())
-        } else {
-            Err(TokenError::MissingPlatClaim(key))
-        }
-    }
-
     pub fn from_raw_claims(claims: &ClaimsMap) -> Result<Self, TokenError> {
         Ok(Self {
-            challenge: Self::get_claim(CCA_PLAT_CHALLENGE, claims)?.try_into()?,
-            verification_service: Self::get_claim(CCA_PLAT_VERIFICATION_SERVICE, claims)?.try_into()?,
-            profile: Self::get_claim(CCA_PLAT_PROFILE, claims)?.try_into()?,
-            instance_id: Self::get_claim(CCA_PLAT_INSTANCE_ID, claims)?.try_into()?,
-            implementation_id: Self::get_claim(CCA_PLAT_IMPLEMENTATION_ID, claims)?.try_into()?,
-            lifecycle: Self::get_claim(CCA_PLAT_SECURITY_LIFECYCLE, claims)?.try_into()?,
-            configuration: Self::get_claim(CCA_PLAT_CONFIGURATION, claims)?.try_into()?,
-            hash_algo: Self::get_claim(CCA_PLAT_HASH_ALGO_ID, claims)?.try_into()?
+            challenge: get_claim(CCA_PLAT_CHALLENGE, claims)?.try_into()?,
+            verification_service: get_claim(CCA_PLAT_VERIFICATION_SERVICE, claims)?.try_into()?,
+            profile: get_claim(CCA_PLAT_PROFILE, claims)?.try_into()?,
+            instance_id: get_claim(CCA_PLAT_INSTANCE_ID, claims)?.try_into()?,
+            implementation_id: get_claim(CCA_PLAT_IMPLEMENTATION_ID, claims)?.try_into()?,
+            lifecycle: get_claim(CCA_PLAT_SECURITY_LIFECYCLE, claims)?.try_into()?,
+            configuration: get_claim(CCA_PLAT_CONFIGURATION, claims)?.try_into()?,
+            hash_algo: get_claim(CCA_PLAT_HASH_ALGO_ID, claims)?.try_into()?,
         })
     }
 }
@@ -40,28 +52,58 @@ pub struct PlatSwComponent {
     pub hash_algo: String,
     pub value: Vec<u8>,
     pub version: String,
-    pub signer_id: Vec<u8>
+    pub signer_id: Vec<u8>,
 }
 
 impl PlatSwComponent {
-    fn get_claim(key: u32, claims: &ClaimsMap) -> Result<ClaimData, TokenError> {
-        if claims.contains_key(&key) {
-            Ok(claims[&key].data.clone())
-        } else {
-            Err(TokenError::MissingPlatSwClaim(key))
-        }
-    }
-
-    pub fn from_raw_claims(claims: &ClaimsMap, plat_hash_algo: &String) -> Result<Self, TokenError> {
+    pub fn from_raw_claims(
+        claims: &ClaimsMap,
+        plat_hash_algo: &String,
+    ) -> Result<Self, TokenError> {
         Ok(Self {
-            ty: Self::get_claim(CCA_SW_COMP_TITLE, claims)?.try_into()?,
-            hash_algo: match Self::get_claim(CCA_SW_COMP_HASH_ALGORITHM, claims) {
+            ty: get_claim(CCA_SW_COMP_TITLE, claims)?.try_into()?,
+            hash_algo: match get_claim(CCA_SW_COMP_HASH_ALGORITHM, claims) {
                 Ok(i) => i.try_into()?,
-                Err(_) => plat_hash_algo.clone()
+                Err(_) => plat_hash_algo.clone(),
             },
-            value: Self::get_claim(CCA_SW_COMP_MEASUREMENT_VALUE, claims)?.try_into()?,
-            version: Self::get_claim(CCA_SW_COMP_VERSION, claims)?.try_into()?,
-            signer_id: Self::get_claim(CCA_SW_COMP_SIGNER_ID, claims)?.try_into()?,
+            value: get_claim(CCA_SW_COMP_MEASUREMENT_VALUE, claims)?.try_into()?,
+            version: get_claim(CCA_SW_COMP_VERSION, claims)?.try_into()?,
+            signer_id: get_claim(CCA_SW_COMP_SIGNER_ID, claims)?.try_into()?,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct RealmClaims {
+    pub challenge: Vec<u8>,
+    pub personalization_value: Vec<u8>,
+    pub hash_algo: String,
+    pub pub_key_hash_algo: String,
+    pub pub_key: Vec<u8>,
+    pub rim: Vec<u8>,
+    pub rems: [Vec<u8>; CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS],
+}
+
+impl RealmClaims {
+    pub fn from_raw_claims(
+        claims: &ClaimsMap,
+        measurement_claims: &ClaimsMap,
+    ) -> Result<Self, TokenError> {
+        let mut rems: [Vec<u8>; CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS] =
+            <[Vec<u8>; CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS]>::default();
+        for i in 0..CLAIM_COUNT_REALM_EXTENSIBLE_MEASUREMENTS {
+            rems[i] = get_claim(i as u32, measurement_claims)?.try_into()?;
+        }
+
+        Ok(Self {
+            challenge: get_claim(CCA_REALM_CHALLENGE, claims)?.try_into()?,
+            personalization_value: get_claim(CCA_REALM_PERSONALIZATION_VALUE, claims)?
+                .try_into()?,
+            hash_algo: get_claim(CCA_REALM_HASH_ALGO_ID, claims)?.try_into()?,
+            pub_key_hash_algo: get_claim(CCA_REALM_PUB_KEY_HASH_ALGO_ID, claims)?.try_into()?,
+            pub_key: get_claim(CCA_REALM_PUB_KEY, claims)?.try_into()?,
+            rim: get_claim(CCA_REALM_INITIAL_MEASUREMENT, claims)?.try_into()?,
+            rems,
         })
     }
 }
