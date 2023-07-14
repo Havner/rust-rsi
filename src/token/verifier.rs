@@ -127,13 +127,9 @@ fn unpack_token_realm(token: &mut RealmToken) -> Result<(), TokenError>
         return Err(TokenError::InvalidTokenFormat("wrong rems count"));
     }
 
-    // zip rems (Value) and claims (Claim) to easily iterate together
-    let rem_map = rems
-        .into_iter()
-        .zip(&mut token.measurement_claims);
-
-    for (rem, (_, v)) in rem_map {
-        get_claim(rem, v)?;
+    for (i, rem) in rems.into_iter().enumerate() {
+        let mut claim = token.measurement_claims.get_mut(&(i as u32)).unwrap();
+        get_claim(rem, &mut claim)?;
     }
 
     Ok(())
