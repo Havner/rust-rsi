@@ -231,12 +231,12 @@ pub fn verify_token_platform(buf: &[u8], key: Option<&[u8]>) -> Result<PlatformT
     Ok(token)
 }
 
-pub fn verify_token(buf: &[u8]) -> Result<AttestationClaims, TokenError>
+pub fn verify_token(buf: &[u8], key: Option<&[u8]>) -> Result<AttestationClaims, TokenError>
 {
     let (platform_token, realm_token) = unpack_cca_token(buf)?;
 
     let realm_token = verify_token_realm(&realm_token)?;
-    let platform_token = verify_token_platform(&platform_token, None)?;
+    let platform_token = verify_token_platform(&platform_token, key)?;
 
     let dak_pub = realm_token.token_claims[&CCA_REALM_PUB_KEY].data.get_bstr();
     let challenge = platform_token.token_claims[&CCA_PLAT_CHALLENGE].data.get_bstr();

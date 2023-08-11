@@ -283,7 +283,7 @@ pub enum TokenError
     Ecdsa(ecdsa::Error),
     MissingPlatClaim(u32),
     MissingPlatSwClaim(u32),
-    ClaimDataMisMatchType
+    ClaimDataMisMatchType,
 }
 
 impl std::fmt::Display for TokenError
