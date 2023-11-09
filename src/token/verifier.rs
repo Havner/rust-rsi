@@ -240,7 +240,7 @@ pub fn verify_token(buf: &[u8], cpak_pub: Option<&[u8]>) -> Result<AttestationCl
     let dak_pub = realm_token.token_claims[&CCA_REALM_PUB_KEY].data.get_bstr();
     let challenge = platform_token.token_claims[&CCA_PLAT_CHALLENGE].data.get_bstr();
     let alg = realm_token.token_claims[&CCA_REALM_PUB_KEY_HASH_ALGO_ID].data.get_text();
-    crypto::verify_platform_challenge(dak_pub, challenge, alg)?;
+    crypto::verify_digest(dak_pub, challenge, alg)?;
 
     let attest_claims = AttestationClaims::new(realm_token, platform_token);
 

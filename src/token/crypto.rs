@@ -28,6 +28,21 @@ impl TryFrom<coset::Algorithm> for SigningAlgorithm
     }
 }
 
+impl TryFrom<&str> for SigningAlgorithm
+{
+    type Error = TokenError;
+
+    fn try_from(alg: &str) -> Result<Self, Self::Error>
+    {
+        match alg {
+            "sha-256" => Ok(SigningAlgorithm::ES256),
+            "sha-384" => Ok(SigningAlgorithm::ES384),
+            "sha-512" => Ok(SigningAlgorithm::ES512),
+            _ => Err(TokenError::InvalidTokenFormat("invalid hash algorithm")),
+        }
+    }
+}
+
 struct RustCryptoVerifier
 {
     algorithm: SigningAlgorithm,
@@ -66,40 +81,39 @@ impl RustCryptoVerifier
     }
 }
 
-pub(crate) fn verify_coset_signature(cose: &CoseSign1, key: &[u8], aad: &[u8]) -> Result<(), TokenError>
+pub(crate) fn verify_coset_signature(cose: &CoseSign1, key_pub: &[u8], aad: &[u8]) -> Result<(), TokenError>
 {
     if cose.protected.header.alg.is_none() {
         return Err(TokenError::InvalidAlgorithm(None));
     }
     let alg = cose.protected.header.alg.as_ref().unwrap().clone().try_into()?;
-    let verifier = RustCryptoVerifier::new(alg, &key);
+    let verifier = RustCryptoVerifier::new(alg, &key_pub);
     cose.verify_signature(aad, |sig, data| verifier.verify(sig, data))
 }
 
-pub(crate) fn verify_platform_challenge(dak_pub: &[u8], dak_pub_hash: &[u8], alg: &str) -> Result<(), TokenError>
+pub(crate) fn verify_digest(data: &[u8], hash: &[u8], alg: &str) -> Result<(), TokenError>
 {
-    let digest = match alg {
-        "sha-256" => {
+    let algorithm = alg.try_into()?;
+
+    let digest = match algorithm {
+        SigningAlgorithm::ES256 => {
             let mut hasher = Sha256::new();
-            hasher.update(dak_pub);
+            hasher.update(data);
             hasher.finalize().to_vec()
         },
-        "sha-384" => {
+        SigningAlgorithm::ES384 => {
             let mut hasher = Sha384::new();
-            hasher.update(dak_pub);
+            hasher.update(data);
             hasher.finalize().to_vec()
         },
-        "sha-512" => {
+        SigningAlgorithm::ES512 => {
             let mut hasher = Sha512::new();
-            hasher.update(dak_pub);
+            hasher.update(data);
             hasher.finalize().to_vec()
         },
-        _ => {
-            return Err(TokenError::InvalidTokenFormat("invalid hash algorithm"));
-        }
     };
 
-    if digest != dak_pub_hash {
+    if digest != hash {
         return Err(TokenError::VerificationFailed("challenge verification failed"));
     }
 
