@@ -1,3 +1,4 @@
+pub(crate) mod crypto;
 pub(crate) mod dumper;
 pub(crate) mod verifier;
 pub(crate) mod parser;
