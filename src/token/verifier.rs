@@ -200,7 +200,7 @@ fn unpack_cca_token(buf: &[u8]) -> Result<(Vec<u8>, Vec<u8>), TokenError>
     Ok((platform, realm))
 }
 
-pub fn verify_token_realm(buf: &[u8]) -> Result<RealmToken, TokenError>
+fn verify_token_realm(buf: &[u8]) -> Result<RealmToken, TokenError>
 {
     let mut token = RealmToken::new();
 
@@ -214,7 +214,7 @@ pub fn verify_token_realm(buf: &[u8]) -> Result<RealmToken, TokenError>
     Ok(token)
 }
 
-pub fn verify_token_platform(buf: &[u8], key: Option<&[u8]>) -> Result<PlatformToken, TokenError>
+pub fn verify_token_platform(buf: &[u8], cpak_pub: Option<&[u8]>) -> Result<PlatformToken, TokenError>
 {
     let mut token = PlatformToken::new();
 
@@ -222,19 +222,19 @@ pub fn verify_token_platform(buf: &[u8], key: Option<&[u8]>) -> Result<PlatformT
 
     unpack_token_platform(&mut token)?;
 
-    if let Some(platform_key) = key {
+    if let Some(platform_key) = cpak_pub {
         crypto::verify_coset_signature(&token.cose_sign1, platform_key, b"")?;
     }
 
     Ok(token)
 }
 
-pub fn verify_token(buf: &[u8], key: Option<&[u8]>) -> Result<AttestationClaims, TokenError>
+pub fn verify_token(buf: &[u8], cpak_pub: Option<&[u8]>) -> Result<AttestationClaims, TokenError>
 {
     let (platform_token, realm_token) = unpack_cca_token(buf)?;
 
     let realm_token = verify_token_realm(&realm_token)?;
-    let platform_token = verify_token_platform(&platform_token, key)?;
+    let platform_token = verify_token_platform(&platform_token, cpak_pub)?;
 
     // verify crypto bind between realm and platform token
     let dak_pub = realm_token.token_claims[&CCA_REALM_PUB_KEY].data.get_bstr();
