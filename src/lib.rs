@@ -6,7 +6,7 @@ mod token_c;
 
 pub use ioctl::kernel::MAX_MEASUR_LEN;
 pub use ioctl::kernel::CHALLENGE_LEN;
-pub use ioctl::kernel::MAX_TOKEN_LEN;
+pub use ioctl::kernel::GRANULE_LEN;
 
 pub use ioctl::abi_version;
 pub use ioctl::attestation_token;
